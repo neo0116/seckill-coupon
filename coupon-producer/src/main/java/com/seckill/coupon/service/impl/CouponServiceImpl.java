@@ -12,12 +12,14 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class CouponServiceImpl implements CouponService, Runnable {
 
-
+    private static volatile int off = 0;
 
     @Autowired
     RedissonClient redissonClient;
@@ -29,6 +31,7 @@ public class CouponServiceImpl implements CouponService, Runnable {
 
     RMap<Integer, Integer> checkMap;
     RBucket<Integer> typeBucket;
+    RBucket<Integer> offBucket;
 
     public CouponServiceImpl() {
         //不必写死容量，可用MQ去更改队列初始化容量
@@ -45,16 +48,36 @@ public class CouponServiceImpl implements CouponService, Runnable {
         //重复提交检查
         checkMap = redissonClient.getMap("coupon:userId:");
         checkMap.expire(7L, TimeUnit.DAYS);
-        //活动开关
+        //活动总开关 默认开启
         typeBucket = redissonClient.getBucket("coupon:type:");
-        typeBucket.set(1);
+        typeBucket.set(0);
+        //活动计时开关 默认关闭
+        offBucket = redissonClient.getBucket("coupon:off:");
+        offBucket.set(0);
 
         Thread thread = new Thread(this);
         thread.start();
+
+        ScheduledExecutorService scheduledThreadPool = Executors.newScheduledThreadPool(1);
+        scheduledThreadPool.scheduleAtFixedRate(new Runnable() {
+            @Override
+            public void run() {
+                Integer flag = offBucket.get();
+                if (flag == 1) {
+                    System.out.println("活动开启");
+                    off = 1;
+                    scheduledThreadPool.shutdown();
+                }
+            }
+        }, 1L, 1L, TimeUnit.SECONDS);
     }
 
     @Override
     public boolean enq(int userId) {
+        if (off == 0) {
+            System.out.println("未开始？" );
+            return false;
+        }
         //频繁点击检查
         RLock checkLock = null;
         try {
@@ -96,7 +119,6 @@ public class CouponServiceImpl implements CouponService, Runnable {
                 System.out.println("用户来了" + userId);
                 couponProducer.sendMsg(String.valueOf(userId));
             } catch (InterruptedException e) {
-                e.printStackTrace();
             }
         }
     }

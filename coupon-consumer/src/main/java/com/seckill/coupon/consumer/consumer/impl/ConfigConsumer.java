@@ -26,11 +26,12 @@ public class ConfigConsumer implements RocketMQListener<CouponConfig> {
         int num = message.getNum();
         int total = message.getTotal();
 
+        RBucket<Integer> offBucket = redissonClient.getBucket("coupon:off:");
+        offBucket.set(1);
+
         //库存
         RMap<Integer, Integer> storeMap = redissonClient.getMap("coupon:store:");
-        //活动开关
-        RBucket<Integer> typeBucket = redissonClient.getBucket("coupon:type:");
-        typeBucket.set(0);
+
         //后台设置编号
         for (int i = 1; i <= num; i++) {
             storeMap.put(i, total);

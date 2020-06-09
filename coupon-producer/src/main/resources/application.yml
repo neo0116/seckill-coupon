@@ -1,0 +1,22 @@
+server:
+  port: 9527
+
+rocketmq:
+  name-server: 192.168.1.16:9876
+  producer:
+    group: coupon-seckill
+    #
+    send-message-timeout: 15000
+    #压缩消息体阈值
+    compress-message-body-threshold: 4096
+    max-message-size: 4194304
+    retry-times-when-send-failed: 2
+    retry-times-when-send-async-failed: 0
+    retry-next-server: true
+
+spring:
+  redis:
+    client-name: redisson
+    cluster:
+      nodes: redis://192.168.1.110:6379,redis://192.168.1.111:6379,redis://192.168.1.112:6379
+    timeout: 10000

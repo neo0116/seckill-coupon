@@ -47,7 +47,7 @@ public class CouponServiceImpl implements CouponService, Runnable {
         checkMap.expire(7L, TimeUnit.DAYS);
         //活动开关
         typeBucket = redissonClient.getBucket("coupon:type:");
-        typeBucket.set(0);
+        typeBucket.set(1);
 
         Thread thread = new Thread(this);
         thread.start();
